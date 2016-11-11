@@ -1,0 +1,246 @@
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="author" content="Андрей Путилов" />
+	<title>probability test</title>
+	<link rel="stylesheet" type="text/css" href="style.css" />
+	<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+</head>
+<body>
+<h1 style="margin-bottom: 25px;">проверка преобразования вероятностей для игры в «крестики-нолики» на свободном поле</h1>
+<style>
+	.tb td {
+		padding: 0 10px 0;
+	}
+	.tb tr:hover {
+		background: #f7f7f7;
+	}
+	/*.tb td:before {
+		content: "—";
+	}*/
+</style>
+<script type="text/javascript">
+
+function create_block() {
+	var n=130;
+	var a=[];
+	for( var i=0; i<9; i++ )
+		a[i] = Math.random();
+	for( var i=9; i<16; i++ )
+		a[i] = Math.random()/2;
+	for( var i=16; i<26; i++ )
+		a[i] = Math.random()/3;
+	for( var i=26; i<n; i++ )
+		a[i] = Math.random()/26;
+	a.sort( function(a,b){return b-a} );
+	var b = flatten_logarithmic(a);
+	var c = flatten_pow(a);
+	var d = flatten_brute(a)
+	var e = flatten_reverse(a)
+	var str=
+		'<tr style="font-weight: bold; ">'+
+			'<td></td>'+
+			'<td>'+Math.round(suma(a)*100)/100+'</td>'+
+			'<td>'+Math.round(suma(b)*100)/100+'</td>'+
+			'<td>'+Math.round(suma(c)*100)/100+'</td>'+
+			'<td>'+Math.round(suma(d)*100)/100+'</td>'+
+			'<td>'+Math.round(suma(e)*100)/100+'</td>'+
+		'</tr>';
+	//str += '<tr><td>-</td><td></td><td></td><td></td><td></td></tr>';
+	for( var i=0; i<n; i++ )
+		str +=
+		'<tr>'+
+			'<td>'+(prob_to_score(a[i])>0?'+':'')+Math.round(prob_to_score(a[i])*100)/100+'</td>'+
+			'<td>'+Math.round(a[i]*100)/100+'</td>'+
+			'<td>'+Math.round(b[i]*100)/100+'</td>'+
+			'<td>'+Math.round(c[i]*100)/100+'</td>'+
+			'<td>'+Math.round(d[i]*100)/100+'</td>'+
+			'<td>'+Math.round(e[i]*100)/100+'</td>'+
+		'</tr>';
+	//str += '<tr><td>-</td><td></td><td></td><td></td><td></td></tr>';
+	str +=
+		'<tr style="font-weight: bold; ">'+
+			'<td></td>'+
+			'<td>'+Math.round(wina(a,a)*100)/100+'</td>'+
+			'<td>'+Math.round(wina(a,b)*100)/100+'</td>'+
+			'<td>'+Math.round(wina(a,c)*100)/100+'</td>'+
+			'<td>'+Math.round(wina(a,d)*100)/100+'</td>'+
+			'<td>'+Math.round(wina(a,e)*100)/100+'</td>'+
+		'</tr>';
+	str = '<div style="padding: 10px; margin: 5px; background: #fff; display: inline-block; " class="output"><table class="tb" style="display: block; border: 1px solid #ddd;  font-size: 10px;">'+str+'</table></div>';
+	$('#container').append(str);
+}
+
+function clear() {
+	$('#container').empty();
+}
+
+var ttime = new Date;
+
+$( function() { setTimeout( cb, 100 ) } )
+
+var cb = function() {
+	create_block();
+	if( ( $('.output').length<30 ) && ( ( $('.output').length<4 ) || ( new Date - ttime < 20000 ) ) )
+		setTimeout( cb, 100 );
+}
+
+
+
+
+
+
+function suma(a) {
+	var s = 0;
+	for( var i=0; i<a.length; i++ )
+		s += a[i];
+	return s;
+}
+
+function flatten_logarithmic_shift( a, shift ) {
+	var b = [];
+	for( var i=0; i<a.length; i++ )
+		b[i] = score_to_prob( prob_to_score(a[i]) + shift );
+	return b;
+}
+
+function flatten_logarithmic(a) {
+	var best=a;
+	for( var shift_i=4.5; shift_i>-5; shift_i-=0.01 ) {
+		var shift = Math.exp(shift_i);
+		var a_minus = flatten_logarithmic_shift( a, -shift );
+		var a_plus  = flatten_logarithmic_shift( a, shift );
+		if( Math.abs(suma(a_minus)-1) < Math.abs(suma(best)-1))
+			best = a_minus;
+		if( Math.abs(suma(a_plus)-1) < Math.abs(suma(best)-1))
+			best = a_plus;
+	}
+	return best;
+}
+
+function flatten_pow_shift( a, shift ) {
+	var b = [];
+	for( var i=0; i<a.length; i++ )
+		b[i] = Math.pow( a[i], shift );
+	return b;
+}
+
+function flatten_pow(a) {
+	var best=a;
+	for( var shift_i=4.5; shift_i>-5; shift_i-=0.01 ) {
+		var shift = Math.exp(shift_i);
+		var a_minus = flatten_pow_shift( a, shift );
+		var a_plus  = flatten_pow_shift( a, 1/shift );
+		if( Math.abs(suma(a_minus)-1) < Math.abs(suma(best)-1))
+			best = a_minus;
+		if( Math.abs(suma(a_plus)-1) < Math.abs(suma(best)-1))
+			best = a_plus;
+	}
+	return best;
+}
+
+function fact( a ) {
+	var nn0 = a;
+	var nn = 1;
+	while( nn0>0 ) {
+		nn = nn * (nn0--);
+	}
+	return nn;
+}
+
+function flatten_brute(a) {
+	var p = [].concat(a);
+	var nn = 100000;
+	var variations = [];
+	for( var i=0; i<nn; i++ ) {
+		var b=[];
+		for( var j=0; j<a.length; j++ )
+			b[j] = 0;
+		var order = [];
+		for( var j=0; j<100; j++ ) {
+			var k = Math.random() * a.length | 0;
+			if( Math.random()<a[k] )
+				order.push(k);
+		}
+		var pp = 1;
+		for( var j=0; j<order.length; j++ ) {
+			var q = a[order[j]];
+			b[order[j]] = 1 - (1-pp * q) * (1-b[order[j]]);
+			pp *= (1-q);
+		}
+		variations.push( b );
+	}
+	p = [];
+	for( var i=0; i<a.length; i++ )
+		p[i] = 0;
+	for( var i=0; i<variations.length; i++ )
+		for( var j=0; j<variations[i].length; j++ )
+			p[j] += variations[i][j];
+	for( var i=0; i<a.length; i++ )
+		p[i] = p[i] / variations.length;
+	return p;
+}
+
+function flatten_reverse(a_original) {
+	var a = [].concat( a_original );
+	for( var iter=0; iter<100000; iter++ ) {
+		var b = [];
+		for( var i=0; i<a.length; i++ ) {
+			var p = 1;
+			for( var j=0; j<a.length; j++ )
+				if( i!=j )
+					p *= (1-a[j]);
+			b[i] = 1 - p;
+		}
+		for( var i=0; i<a.length; i++ ) {
+			var aa = a[i];
+			var bb = a[i] * b[i];
+			b[i] = bb;
+		}
+		var sum_a = suma(a);
+		var sum_b = suma(b);
+		if( sum_b>1 ) {
+			a = [].concat(b);
+			continue;
+		}
+		var k = ( 1-sum_b ) / ( sum_a-sum_b );
+		if( (k<0) || (k>1) )
+			break;
+		for( var i=0; i<a.length; i++ )
+			a[i] = k * a[i] + (1-k) * b[i];
+	}
+	return a;
+}
+
+function prob_to_score( E ) {
+	var k = 0.7213475204444817; // 2;
+	return -k * Math.log( 1/E - 1 );
+}
+
+function score_to_prob( R ) {
+	var k = 0.7213475204444817; // 2;
+	return 1 / ( 1 + Math.exp(-R/k) );
+}
+
+function suma(a) {
+	var s = 0;
+	for( var i=0; i<a.length; i++ )
+		s += a[i];
+	return s;
+}
+
+function wina( a, p ) {
+	var sum_k = 0;
+	var sum_s = 0;
+	for( var i=0; i<a.length; i++ ) {
+		sum_s += prob_to_score(a[i]) * p[i];
+		sum_k += p[i];
+	}
+	return sum_s / sum_k;
+}
+
+</script>
+<p><a href="javascript: create_block()">добавить</a><span style="margin-left: 20px;"><a href="javascript: clear()">очистить</a></span></p>
+<div id="container" style="background: #eee; font-size: 10px; font-family: Helvetica; padding: 5px; "></div>
+</body>
+</html>
